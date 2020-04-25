@@ -18,7 +18,7 @@ class PortScanner():
         self.thread_num = thread_num
         self.port_queue = Queue()
         self.open_ports = []
-        
+
         # Fill queue
         self.fill_queue()
 
@@ -38,14 +38,13 @@ class PortScanner():
         for port in self.port_list:
             self.port_queue.put(port)
 
-
     def worker(self):
         """This is worker method which will be called by each thread.
         This function take 3 arguments
         1. Host to check port on
         2. Queue which has list of ports
         3. Open Ports list which will be used to store open ports identified in program"""
-        
+
         # Run loop until queue is empty
         while not self.port_queue.empty():
 
@@ -54,7 +53,6 @@ class PortScanner():
 
             if self.scan_port(port):
                 self.open_ports.append(port)
-
 
     def execute(self):
         """This program take the host name, port list and number of threads as input and run the port scanning"""
@@ -75,19 +73,20 @@ class PortScanner():
 
         # Join all threads so as to wait for completion
         for thread in threads_list:
-             thread.join()
-        
+            thread.join()
+
         return self.open_ports
+
 
 if __name__ == "__main__":
     # get commandline arguments for host name
     import sys
-    
+
     if len(sys.argv) < 2:
-        print("Provide hpst name from command line")
+        print("Provide host name from command line")
     else:
         # Define host for port scanning
-        host = sys.argv[1] 
+        host = sys.argv[1]
 
         # Define Port list
         port_list = range(1, 1024)
