@@ -8,17 +8,36 @@ import threading
 # since multiple threads run in parallel, its better to have queue for port lists
 from queue import SimpleQueue
 
+# Regular Expression for host address matching
+import re
+
 
 class PortScanner():
     """Port Scanner Class"""
 
-    def __init__(self, host, port_list, thread_num=10):
-        self.host = host
+    def __init__(self, host_name, port_list, thread_num=15, timeout=10):
         self.port_list = port_list
         self.thread_num = thread_num
+        self.timeout = timeout
+        self.host_name = host_name
 
         # Call reset to initialize the variables
         self.__reset()
+        
+        # Translate Host name to host ip
+        self.__get_host_ip(host_name)
+        
+    def __get_host_ip(self, host_name):
+        """Check if input Host is valid and translate it to ip address"""
+        ip_re = re.compile(r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
+        
+        # If Hostname matches the pattern of IP address, then host is IP
+        if re.fullmatch(ip_re, host_name.strip(' ')):
+            self.host = host_name
+        
+        # If Hostname does not match ip pattern, then do dns lookup to find ip
+        else:
+            self.host = socket.gethostbyname(host_name)
 
     def __reset(self):
         # Try to delete Port Queue
@@ -55,10 +74,19 @@ class PortScanner():
         """ Function to scan the ports"""
         # Exceptuon handling for cases if port is not reachable
         try:
+            # Create Socket Connection
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((self.host, port))
-            sock.close()
-            return True
+            
+            # Set Timeout
+            sock.settimeout(self.timeout)
+            
+            # Try connection
+            res = sock.connect_ex((self.host, port))
+            if res == 0:
+                sock.close()
+                return True
+            else:
+                return False
         except:
             return False
 
@@ -119,10 +147,19 @@ class PortScanner():
     def __print_open_port_queue(self):
         """ Print the available ports in open port queue """
         while not self.open_ports_queue.empty():
-            print(self.open_ports_queue.get(), flush=True)
+            print(f"{self.open_ports_queue.get()} ✓", flush=True, end="\t\t")
 
     def print_open_ports(self):
         """ Execute all threads and print the list of open ports as and when it is found"""
+        
+        # Display Host name where port is being scanned
+        if self.host == self.host_name:
+            host_disp = self.host
+        else:
+            host_disp = f"{self.host_name}({self.host})"
+    
+        print(f"\nScanning for open ports on {host_disp}...", flush=True)
+        
         # Execute the threads
         self.__execute_threads()
 
@@ -134,6 +171,7 @@ class PortScanner():
         alive_threads = [thread.is_alive() for thread in self.threads_list]
         while True in alive_threads:
             self.__print_open_port_queue()
+            
             # Re-calculate alive threads
             alive_threads = [thread.is_alive() for thread in self.threads_list]
 
@@ -143,14 +181,15 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Provide host name from command line...")
+        host_name = input("Enter the host to scan: ")
     else:
         # Define host for port scanning
-        host = sys.argv[1]
+        host_name = sys.argv[1]
 
-        # Define Port list
-        port_list = range(1, 1025)  # 1 - 1024 port numbers
+    # Define Port list
+    port_list = range(1, 1025)  # 1 - 1024 port numbers
 
-        # Create instance of Port Scanner
-        ps = PortScanner(host, port_list, 10)
-        print(ps.print_open_ports())
+    # Create instance of Port Scanner
+    ps = PortScanner(host_name, port_list, thread_num=20, timeout=10)
+    ps.print_open_ports()
+    #print(ps.get_open_ports())
