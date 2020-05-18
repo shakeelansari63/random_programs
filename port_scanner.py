@@ -8,8 +8,17 @@ import threading
 # since multiple threads run in parallel, its better to have queue for port lists
 from queue import SimpleQueue
 
+# Coloring The output
+from colorama import Fore, Style
+
 # Regular Expression for host address matching
 import re
+
+PORT_LISTENING_CODE = 0
+PORT_LISTENING_SYMB = "✔"
+PORT_REACHABLE_SYMB = "✗"
+PORT_REACHABLE_CODE = 111
+PORT_UNREACHABLE_CODE = -1
 
 
 class PortScanner():
@@ -70,6 +79,7 @@ class PortScanner():
         self.open_ports_queue = SimpleQueue()
         self.open_ports_list = []
         self.threads_list = []
+        self.printing_line = 0
 
     def __scan_port(self, port):
         """ Function to scan the ports"""
@@ -83,13 +93,26 @@ class PortScanner():
 
             # Try connection
             res = sock.connect_ex((self.host, port))
-            if res == 0:
+
+            # Port is reachable and listening
+            if res == PORT_LISTENING_CODE:
                 sock.close()
-                return True
+                return PORT_LISTENING_CODE
+
+            # Port is reachable but not listening
+            elif res == PORT_REACHABLE_CODE:
+                sock.close()
+                return PORT_REACHABLE_CODE
+
+            # Port is unreachable
             else:
-                return False
+                sock.close()
+                return PORT_UNREACHABLE_CODE
+
+        # Port is unreachable
         except:
-            return False
+            sock.close()
+            return PORT_UNREACHABLE_CODE
 
     def __fill_queue(self):
         """Function to fill the queue with list of ports"""
@@ -109,9 +132,17 @@ class PortScanner():
             # Get port from queue
             port = self.port_queue.get()
 
-            if self.__scan_port(port):
-                self.open_ports_queue.put(port)
-                self.open_ports_list.append(port)
+            if self.__scan_port(port) == PORT_LISTENING_CODE:
+                self.open_ports_queue.put(
+                    f"{Fore.GREEN}{port} {PORT_LISTENING_SYMB}{Style.RESET_ALL}")
+                self.open_ports_list.append(
+                    f"{Fore.GREEN}{port} {PORT_LISTENING_SYMB}{Style.RESET_ALL}")
+
+            elif self.__scan_port(port) == PORT_REACHABLE_CODE:
+                self.open_ports_queue.put(
+                    f"{Fore.CYAN}{port} {PORT_REACHABLE_SYMB}{Style.RESET_ALL}")
+                self.open_ports_list.append(
+                    f"{Fore.CYAN}{port} {PORT_REACHABLE_SYMB}{Style.RESET_ALL}")
 
     def __execute_threads(self):
         """This program take the host name, port list and number of threads as input and run the port scanning"""
@@ -148,7 +179,13 @@ class PortScanner():
     def __print_open_port_queue(self):
         """ Print the available ports in open port queue """
         while not self.open_ports_queue.empty():
-            print(f"{self.open_ports_queue.get()} ✓", flush=True, end="\t\t")
+            # Logic to put new line after every 5 columns
+            if self.printing_line == 10:
+                print("")
+                self.printing_line = 0
+
+            print(f"{self.open_ports_queue.get()}", flush=True, end="\t\t")
+            self.printing_line += 1
 
     def print_open_ports(self):
         """ Execute all threads and print the list of open ports as and when it is found"""
@@ -170,7 +207,7 @@ class PortScanner():
 
         # Loop to see any ports in port queue
         alive_threads = [thread.is_alive() for thread in self.threads_list]
-        while True in alive_threads:
+        while any(alive_threads):
             self.__print_open_port_queue()
 
             # Re-calculate alive threads
@@ -191,6 +228,6 @@ if __name__ == "__main__":
     port_list = range(1, 1025)  # 1 - 1024 port numbers
 
     # Create instance of Port Scanner
-    ps = PortScanner(host_name, port_list, thread_num=20, timeout=10)
+    ps = PortScanner(host_name, port_list, thread_num=20, timeout=5)
     ps.print_open_ports()
     # print(ps.get_open_ports())
