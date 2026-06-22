@@ -143,8 +143,9 @@ def merge_leaves_into_tree(leaf_nodes: List[dict]) -> str:
     # Convert our list of leaves to JSON strings for the LLM to process
     result = merge_chain.invoke({"leaf_nodes_json": json.dumps(leaf_nodes, indent=2)})
 
-    print(result)
-    return json.dumps(result.model_dump(), indent=2)
+    final_pageindex_tree = json.dumps(result.model_dump(), indent=2)
+    print(f"PageIndex Tree: {final_pageindex_tree}\n")
+    return final_pageindex_tree
 
 
 # Build the PageIndex Tree
